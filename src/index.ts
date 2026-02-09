@@ -35,14 +35,16 @@ app.get('/health', (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
+        const trimmedPassword = password?.trim();
 
         // 1. Check Mock Credentials first (before any DB access)
-        if (email === 'volunteer@example.com' && password === 'password123') {
+        if (normalizedEmail === 'volunteer@example.com' && trimmedPassword === 'password123') {
             console.log('✅ Mock login successful');
             return res.status(200).json({
                 success: true,
                 token: 'mock-jwt-token-server-side',
-                user: { id: 'mock-user-1', name: 'Mock Volunteer', email }
+                user: { id: 'mock-user-1', name: 'Mock Volunteer', email: normalizedEmail }
             });
         }
 
