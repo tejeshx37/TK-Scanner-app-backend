@@ -3,6 +3,8 @@ import * as admin from 'firebase-admin';
 
 dotenv.config();
 
+let db: admin.firestore.Firestore | null = null;
+
 if (!admin.apps.length) {
     try {
         const serviceAccount = {
@@ -13,18 +15,25 @@ if (!admin.apps.length) {
         };
 
         if (!serviceAccount.projectId || !serviceAccount.clientEmail || !serviceAccount.privateKey) {
-            console.error('Missing Firebase Admin credentials. Please check .env file.');
-            // Don't crash here to allow mock mode if needed, but logging error is good.
+            console.warn('⚠️  Missing Firebase Admin credentials. Firebase features will be disabled. Mock login will still work.');
         } else {
             admin.initializeApp({
                 credential: admin.credential.cert(serviceAccount),
                 // databaseURL: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseio.com` // Optional for Firestore
             });
             console.log('🔥 Firebase Admin Initialized');
+            db = admin.firestore();
         }
     } catch (error) {
-        console.error('Firebase admin initialization error', error);
+        console.error('❌ Firebase admin initialization error:', error);
+        console.warn('⚠️  Continuing without Firebase. Only mock login will work.');
+    }
+} else {
+    try {
+        db = admin.firestore();
+    } catch (error) {
+        console.error('❌ Failed to get Firestore instance:', error);
     }
 }
 
-export const db = admin.firestore();
+export { db };

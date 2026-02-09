@@ -36,8 +36,9 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. Check Mock Credentials first
+        // 1. Check Mock Credentials first (before any DB access)
         if (email === 'volunteer@example.com' && password === 'password123') {
+            console.log('✅ Mock login successful');
             return res.status(200).json({
                 success: true,
                 token: 'mock-jwt-token-server-side',
@@ -45,8 +46,17 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        // 2. Check Firestore "users" collection
-        const usersRef = db.collection('users');
+        // 2. Check if Firebase is available
+        if (!db) {
+            console.error('❌ Firebase not initialized. Only mock login is available.');
+            return res.status(503).json({
+                success: false,
+                error: 'Database unavailable. Please contact support or use test credentials.'
+            });
+        }
+
+        // 3. Check Firestore "appUsers" collection
+        const usersRef = db!.collection('appUsers');
         const snapshot = await usersRef.where('email', '==', email).get();
 
         if (snapshot.empty) {
@@ -68,7 +78,7 @@ app.post('/api/auth/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Login Error:', error);
+        console.error('❌ Login Error:', error);
         res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
@@ -102,6 +112,12 @@ app.post('/api/scan', async (req, res) => {
                     firstCheckInTime: new Date().toISOString()
                 }
             });
+        }
+
+        // Check if Firebase is available
+        if (!db) {
+            console.error('❌ Firebase not initialized. Cannot scan tickets.');
+            return res.status(503).json({ status: 'invalid', error: 'Database unavailable' });
         }
 
         // PARALLEL EXECUTION: Kick off primary queries simultaneously
@@ -141,7 +157,7 @@ app.post('/api/scan', async (req, res) => {
         } else {
             // Fallback: Secondary lookup by field 'passId'
             // This path is slower and sequential, but necessary for robustness
-            const querySnap = await db.collection('passes').where('passId', '==', passId).limit(1).get();
+            const querySnap = await db!.collection('passes').where('passId', '==', passId).limit(1).get();
             if (!querySnap.empty) {
                 passFound = true;
                 const d = querySnap.docs[0].data();
@@ -212,6 +228,12 @@ app.post('/api/scan/confirm', async (req, res) => {
     try {
         const { passId, memberId } = req.body;
 
+        // Check if Firebase is available
+        if (!db) {
+            console.error('❌ Firebase not initialized. Cannot confirm check-in.');
+            return res.status(503).json({ success: false, error: 'Database unavailable' });
+        }
+
         const passRef = db.collection('passes').doc(passId);
 
         if (memberId) {
@@ -238,7 +260,7 @@ app.post('/api/scan/confirm', async (req, res) => {
                 checkedInAt: new Date().toISOString()
             }).catch(async (err) => {
                 // If doc update fails (e.g. not found by ID), try finding by passId field
-                const query = await db.collection('passes').where('passId', '==', passId).limit(1).get();
+                const query = await db!.collection('passes').where('passId', '==', passId).limit(1).get();
                 if (!query.empty) {
                     await query.docs[0].ref.update({
                         checkedIn: true,
@@ -252,7 +274,7 @@ app.post('/api/scan/confirm', async (req, res) => {
         }
 
         // 3. Always add a record to the scans log
-        await db.collection('scans').add({
+        await db!.collection('scans').add({
             passId,
             memberId: memberId || null,
             scannerId: 'device-id-placeholder',

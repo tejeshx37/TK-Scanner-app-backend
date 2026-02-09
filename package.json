@@ -8,6 +8,7 @@
     "dev": "ts-node-dev --respawn --poll src/index.ts",
     "backend": "npm run dev",
     "tunnel": "ts-node src/scripts/restart-tunnel.ts",
+    "init-users": "ts-node src/scripts/init-app-users.ts",
     "build": "tsc"
   },
   "keywords": [],
