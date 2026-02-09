@@ -3,7 +3,7 @@ import { db } from '../firebase';
 async function debugCheckIns() {
     console.log('--- Debugging Check-ins ---');
 
-    const scansSnap = await db.collection('scans').where('passId', '==', 'TdabGGAHGyVHlFGwRv5z').get();
+    const scansSnap = await db!.collection('scans').where('passId', '==', 'TdabGGAHGyVHlFGwRv5z').get();
     console.log(`Found ${scansSnap.size} records for TdabGGAHGyVHlFGwRv5z:`);
     scansSnap.forEach(doc => {
         const data = doc.data();
@@ -14,7 +14,7 @@ async function debugCheckIns() {
     if (scansSnap.size > 0) {
         const firstPassId = scansSnap.docs[0].data().passId;
         console.log(`\nTesting duplicate query for passId: ${firstPassId}`);
-        const dup = await db.collection('scans')
+        const dup = await db!.collection('scans')
             .where('passId', '==', firstPassId)
             .where('status', '==', 'valid')
             .get();

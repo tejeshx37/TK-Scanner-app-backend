@@ -12,7 +12,7 @@ console.log('🔍 Checking Firebase Firestore Connection...');
 
 async function checkConnection() {
     try {
-        const collections = await db.listCollections();
+        const collections = await db!.listCollections();
         console.log('✅ Connection Successful!');
         console.log(`🗄️ Found ${collections.length} collections.`);
         collections.forEach(col => console.log(` - ${col.id}`));
