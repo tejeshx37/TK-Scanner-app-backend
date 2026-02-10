@@ -14,7 +14,9 @@ async function inspectPass(passId: string) {
             console.log('Pass not found in passes collection.');
         }
     }
-    process.exit(0);
+    if (typeof process !== 'undefined') {
+        process.exit(0);
+    }
 }
 
 inspectPass('TdabGGAHGyVHlFGwRv5z').catch(console.error);

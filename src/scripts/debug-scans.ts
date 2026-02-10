@@ -5,7 +5,7 @@ async function debugCheckIns() {
 
     const scansSnap = await db!.collection('scans').where('passId', '==', 'TdabGGAHGyVHlFGwRv5z').get();
     console.log(`Found ${scansSnap.size} records for TdabGGAHGyVHlFGwRv5z:`);
-    scansSnap.forEach(doc => {
+    scansSnap.forEach((doc: any) => {
         const data = doc.data();
         console.log(`- Scan Record ID: ${doc.id}, status: ${data.status}, scannedAt: ${data.scannedAt?.toDate?.() || 'no date'}`);
     });
@@ -21,7 +21,9 @@ async function debugCheckIns() {
         console.log(`Manual Query Result: ${dup.size} matches found.`);
     }
 
-    process.exit(0);
+    if (typeof process !== 'undefined') {
+        process.exit(0);
+    }
 }
 
 debugCheckIns().catch(console.error);
