@@ -295,7 +295,7 @@ app.post('/api/scan/confirm', async (req, res) => {
 // Start Server
 // Explicitly listen on 0.0.0.0 to be reachable from other devices on the same Wi-Fi
 app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server running on http://192.168.29.83:${PORT} [Mode: ${process.env.NODE_ENV}]`);
+    console.log(`Server running on port ${PORT} [Mode: ${process.env.NODE_ENV}]`);
 });
 
 export default app;
