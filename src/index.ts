@@ -26,7 +26,12 @@ app.use((req, res, next) => {
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.status(200).json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        env: process.env.NODE_ENV || 'development',
+        firebase: !!db
+    });
 });
 
 // --- API ROUTES ---
@@ -94,6 +99,12 @@ app.post('/api/scan', async (req, res) => {
         const { passId, scannerId, userId, passType, token } = req.body;
 
         if (!passId) return res.status(400).json({ status: 'invalid', error: 'Missing Pass ID' });
+
+        // Firestore paths cannot contain "//". Validate passId before using it in .doc() or query
+        if (typeof passId === 'string' && passId.includes('//')) {
+            console.warn(`[${new Date().toISOString()}] Rejected invalid Pass ID format: ${passId}`);
+            return res.status(200).json({ status: 'invalid', error: 'Invalid Ticket Format' });
+        }
 
         console.log(`Scanning Pass: ${passId}, User: ${userId}, Type: ${passType}`);
 
@@ -218,9 +229,13 @@ app.post('/api/scan', async (req, res) => {
 
         return res.status(200).json({ status: 'valid', student: studentInfo });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Scan Error:', error);
-        res.status(500).json({ status: 'invalid', error: 'Server error' });
+        res.status(500).json({
+            status: 'invalid',
+            error: 'Server error',
+            message: error.message
+        });
     }
 });
 
@@ -229,6 +244,13 @@ app.post('/api/scan/confirm', async (req, res) => {
     console.log(`[${new Date().toISOString()}] POST /api/scan/confirm - Payload:`, JSON.stringify(req.body));
     try {
         const { passId, memberId } = req.body;
+
+        if (!passId) return res.status(400).json({ success: false, error: 'Missing Pass ID' });
+
+        // Firestore paths cannot contain "//".
+        if (typeof passId === 'string' && passId.includes('//')) {
+            return res.status(400).json({ success: false, error: 'Invalid Pass ID format' });
+        }
 
         // Check if Firebase is available
         if (!db) {
@@ -286,10 +308,41 @@ app.post('/api/scan/confirm', async (req, res) => {
 
         console.log(`Confirmed Check-in: ${passId} ${memberId ? `(Member: ${memberId})` : ''}`);
         res.status(200).json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Confirm Error:', error);
-        res.status(500).json({ success: false, error: 'Failed to record check-in' });
+        res.status(500).json({
+            success: false,
+            error: 'Failed to record check-in',
+            message: error.message
+        });
     }
+});
+
+// --- ERROR HANDLING ---
+
+// 4. 404 Handler for undefined routes
+app.use((req, res) => {
+    console.warn(`[${new Date().toISOString()}] 404 Not Found: ${req.method} ${req.url}`);
+    res.status(404).json({
+        success: false,
+        error: 'Route not found'
+    });
+});
+
+// 5. Global Error Handler (Must be last)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(`[${new Date().toISOString()}] GLOBAL ERROR:`, err);
+
+    // Handle JSON parsing errors from express.json()
+    if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
+        return res.status(400).json({ success: false, error: 'Invalid JSON payload' });
+    }
+
+    res.status(err.status || 500).json({
+        success: false,
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : err.message
+    });
 });
 
 // Start Server
