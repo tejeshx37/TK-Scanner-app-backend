@@ -237,12 +237,19 @@ app.post('/api/scan', async (req, res) => {
         const scansRef = db.collection('scans');
 
         const passDocPromise = passRef.get();
-        // Check for duplicate in parallel (assuming passId is the primary key)
-        const duplicateCheckPromise = scansRef
-            .where('passId', '==', passId)
-            .where('status', '==', 'valid')
-            .limit(1)
-            .get();
+        // Check for duplicate in parallel (Per-Event check)
+        const duplicateCheckPromise = eventId
+            ? scansRef
+                .where('passId', '==', passId)
+                .where('eventId', '==', eventId)
+                .where('status', '==', 'valid')
+                .limit(1)
+                .get()
+            : scansRef
+                .where('passId', '==', passId)
+                .where('status', '==', 'valid')
+                .limit(1)
+                .get();
 
         const [passDoc, duplicateRef] = await Promise.all([passDocPromise, duplicateCheckPromise]);
 
@@ -296,8 +303,14 @@ app.post('/api/scan', async (req, res) => {
         }
 
         // C. Check for Duplicate Scans
-        // We use the duplicateRef from the parallel query
-        const isActuallyCheckedIn = !duplicateRef.empty || studentData!.checkedIn === true;
+        // Per-Event Rule: If eventId is provided, block only if THAT event was already scanned.
+        // Otherwise (Gate Entry), block if ANY valid scan exists or master checkedIn is true.
+        let isActuallyCheckedIn = false;
+        if (eventId) {
+            isActuallyCheckedIn = !duplicateRef.empty;
+        } else {
+            isActuallyCheckedIn = !duplicateRef.empty || studentData!.checkedIn === true;
+        }
 
         if (isActuallyCheckedIn && !studentData!.members) {
             // Update cache for next time
@@ -310,7 +323,7 @@ app.post('/api/scan', async (req, res) => {
                 if (firstScan.scannedAt?.toDate) scanDate = firstScan.scannedAt.toDate();
             }
 
-            console.log(`Scan Result: duplicate. Duration: ${Date.now() - startTime}ms`);
+            console.log(`Scan Result: duplicate (${eventId || 'global'}). Duration: ${Date.now() - startTime}ms`);
             return res.status(200).json({
                 status: 'duplicate',
                 student: {
@@ -343,7 +356,7 @@ app.post('/api/scan', async (req, res) => {
 app.post('/api/scan/confirm', async (req, res) => {
     console.log(`[${new Date().toISOString()}] POST /api/scan/confirm - Payload:`, JSON.stringify(req.body));
     try {
-        let { passId, memberId } = req.body;
+        let { passId, memberId, eventId, eventName, passCategory, attendanceDate } = req.body;
 
         if (!passId) return res.status(400).json({ success: false, error: 'Missing Pass ID' });
 
@@ -408,7 +421,6 @@ app.post('/api/scan/confirm', async (req, res) => {
             });
 
             // Add to Instant Cache for future scans (per-event)
-            const { eventId } = req.body;
             checkedInCache.add(`${passId}:${eventId || 'gate'}`);
         }
 
@@ -418,12 +430,13 @@ app.post('/api/scan/confirm', async (req, res) => {
             memberId: memberId || null,
             scannerId: 'device-id-placeholder',
             status: 'valid',
+            eventId: eventId || null,
+            eventName: eventName || null,
             scannedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
         // 4. Write to event_attendance collection for per-event tracking
         // Allows same person to attend multiple events on the same day
-        const { eventId, eventName, passCategory, attendanceDate } = req.body;
         if (eventId) {
             const today = attendanceDate || new Date().toISOString().split('T')[0];
             // Per-event duplicate check: passId + eventId + date
@@ -542,8 +555,8 @@ app.post('/api/sync', async (req, res) => {
             });
         }
 
-        // 2. Add to Instant Cache
-        checkedInCache.add(passId);
+        // 2. Add to Instant Cache (Per-Event)
+        checkedInCache.add(`${passId}:${eventId || 'gate'}`);
 
         // 3. Record the Scan Log
         await db.collection('scans').add({
@@ -551,6 +564,8 @@ app.post('/api/sync', async (req, res) => {
             scannerId: scannerId || 'offline_device',
             userId: userId || null,
             event: event || 'Gate Entry',
+            eventId: eventId || null,
+            eventName: eventName || null,
             status: 'valid',
             scannedAt: scannedAt ? admin.firestore.Timestamp.fromMillis(scannedAt) : admin.firestore.FieldValue.serverTimestamp(),
             isOfflineSync: true
