@@ -211,13 +211,14 @@ app.post('/api/scan', async (req, res) => {
         }
 
         // 0. INSTANT CACHE CHECK (High Volume Optimization)
-        // If we know it's checked in, reject immediately (0ms latency)
-        if (checkedInCache.has(passId)) {
-            console.log(`Scan Result: duplicate (CACHE HIT). Duration: ${Date.now() - startTime}ms`);
+        // Check per-event cache: block only if SAME pass at SAME event
+        const cacheKey = `${passId}:${eventId || 'gate'}`;
+        if (checkedInCache.has(cacheKey)) {
+            console.log(`Scan Result: duplicate (CACHE HIT for ${cacheKey}). Duration: ${Date.now() - startTime}ms`);
             return res.status(200).json({
                 status: 'duplicate',
                 student: {
-                    name: 'Cached Passenger', // We don't need full details for a duplicate rejection
+                    name: 'Already Scanned',
                     passType: passType || 'General',
                     checkedIn: true,
                     firstCheckInTime: new Date().toISOString()
@@ -261,9 +262,10 @@ app.post('/api/scan', async (req, res) => {
                 checkedInAt: passData?.checkedInAt || null
             };
 
-            // Populate Cache if already checked in
+            // Populate Cache if already checked in (per-event)
+            // Note: If team members exist, we don't cache as we need to see who's left
             if (passData?.checkedIn && !passData.teamSnapshot?.members) {
-                checkedInCache.add(passId);
+                checkedInCache.add(`${passId}:${eventId || 'gate'}`);
             }
         } else {
             // Fallback: Secondary lookup by field 'passId'
@@ -283,7 +285,7 @@ app.post('/api/scan', async (req, res) => {
 
                 // Populate Cache if already checked in
                 if (d.checkedIn && !d.teamSnapshot?.members) {
-                    checkedInCache.add(passId);
+                    checkedInCache.add(`${passId}:${eventId || 'gate'}`);
                 }
             }
         }
@@ -299,7 +301,7 @@ app.post('/api/scan', async (req, res) => {
 
         if (isActuallyCheckedIn && !studentData!.members) {
             // Update cache for next time
-            checkedInCache.add(passId);
+            checkedInCache.add(`${passId}:${eventId || 'gate'}`);
 
             let scanDate = studentData!.checkedInAt ? new Date(studentData!.checkedInAt) : new Date();
 
@@ -405,8 +407,9 @@ app.post('/api/scan/confirm', async (req, res) => {
                 }
             });
 
-            // Add to Instant Cache for future scans
-            checkedInCache.add(passId);
+            // Add to Instant Cache for future scans (per-event)
+            const { eventId } = req.body;
+            checkedInCache.add(`${passId}:${eventId || 'gate'}`);
         }
 
         // 3. Always add a record to the scans log
