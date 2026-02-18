@@ -139,9 +139,9 @@ app.get('/api/events', async (req, res) => {
         const snapshot = await eventsRef.get();
 
         if (snapshot.empty) {
-            // Return defaults if collection is empty
+            // Return defaults if collection is empty — use correct pass type IDs matching frontend
             return res.status(200).json([
-                { id: 'gate', name: 'Gate Entry', allowedPassTypes: ['GENERAL', 'VIP_PRO', 'STAFF', 'WORKSHOP'] }
+                { id: 'gate', name: 'Gate Entry', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert', 'group_events'] }
             ]);
         }
 
