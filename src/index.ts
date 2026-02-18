@@ -91,6 +91,11 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+// Health check — used by frontend warm-up ping to wake Railway server on scanner mount
+app.get('/api/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', ts: Date.now() });
+});
+
 // 2. Get Events (New)
 app.get('/api/events', async (req, res) => {
     try {
