@@ -97,57 +97,55 @@ app.get('/api/health', (_req, res) => {
 });
 
 // 2. Get Events (New)
+// Central Registry of Events and their allowed pass types
+const CENTRAL_EVENTS_REGISTRY = [
+    { id: 'gate', name: 'Gate Entry', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert', 'group_events'] },
+    // Performance
+    { id: 'choreo', name: 'Choreo Showcase', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'rap-athon', name: 'Rap-a-thon', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'singing', name: 'Solo Singing', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'dual-dance', name: 'Dual Dance', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'cypher', name: 'Cypher', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'bob', name: 'Battle of Bands', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    // Creative
+    { id: 'paint-town', name: 'Paint the Town', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'filmfinatics', name: 'Filmfinatics', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'designers', name: 'Designers Onboard', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'frame-spot', name: 'Frame Spot', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    // Technical
+    { id: 'ctf', name: 'Upside Down CTF', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'mlops', name: 'MLOps Workshop', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'prompt-pixel', name: 'Prompt Pixel', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'model-mastery', name: 'Model Mastery', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'deadlock', name: 'Deadlock', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'crack-code', name: 'Crack the Code', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'web3-games', name: 'Building Games Web3', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'gaming', name: 'Gaming Event', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    // Strategic/Business
+    { id: 'ceo', name: 'The 90 Minute CEO', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'astrotrack', name: 'Astrotrack', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'channel-surf', name: 'Channel Surfing', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
+    { id: 'case-files', name: 'Case Files', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'summit', name: 'Mock Global Summit', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'lies', name: 'Chain of Lies', allowedPassTypes: ['day_pass', 'sana_concert'] },
+    { id: 'exchange', name: 'Exchange Effect', allowedPassTypes: ['day_pass', 'sana_concert', 'group_events'] },
+    // All Access / Group Only
+    { id: 'treasure', name: 'Treasure Hunt', allowedPassTypes: ['sana_concert', 'group_events'] },
+    { id: 'foss-treasure', name: 'FOSS Treasure Hunt', allowedPassTypes: ['sana_concert', 'group_events'] },
+    { id: 'borderland', name: 'Borderland Protocol', allowedPassTypes: ['sana_concert', 'group_events'] }
+];
+
 app.get('/api/events', async (req, res) => {
     try {
         if (!db) {
-            // Full comprehensive defaults based on provided mapping
-            return res.status(200).json([
-                { id: 'gate', name: 'Gate Entry', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert', 'group_events'] },
-                // Performance (Day, Proshow, Sana)
-                { id: 'choreo', name: 'Choreo Showcase', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'rap-athon', name: 'Rap-a-thon', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'singing', name: 'Solo Singing', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'dual-dance', name: 'Dual Dance', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'cypher', name: 'Cypher', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'bob', name: 'Battle of Bands', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                // Creative (Day, Proshow, Sana)
-                { id: 'paint-town', name: 'Paint the Town', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'filmfinatics', name: 'Filmfinatics', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'designers', name: 'Designers Onboard', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'frame-spot', name: 'Frame Spot', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                // Technical (Day, Proshow, Sana)
-                { id: 'ctf', name: 'Upside Down CTF', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'mlops', name: 'MLOps Workshop', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'prompt-pixel', name: 'Prompt Pixel', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'model-mastery', name: 'Model Mastery', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                // Day + Sana
-                { id: 'deadlock', name: 'Deadlock', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'crack-code', name: 'Crack the Code', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'web3-games', name: 'Building Games Web3', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'gaming', name: 'Gaming Event', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                // Strategic/Business (Day, Proshow, Sana)
-                { id: 'ceo', name: 'The 90 Minute CEO', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'astrotrack', name: 'Astrotrack', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'channel-surf', name: 'Channel Surfing', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert'] },
-                { id: 'case-files', name: 'Case Files', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'summit', name: 'Mock Global Summit', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'lies', name: 'Chain of Lies', allowedPassTypes: ['day_pass', 'sana_concert'] },
-                { id: 'exchange', name: 'Exchange Effect', allowedPassTypes: ['day_pass', 'sana_concert', 'group_events'] },
-                // All Access / Group Only
-                { id: 'treasure', name: 'Treasure Hunt', allowedPassTypes: ['sana_concert', 'group_events'] },
-                { id: 'foss-treasure', name: 'FOSS Treasure Hunt', allowedPassTypes: ['sana_concert', 'group_events'] },
-                { id: 'borderland', name: 'Borderland Protocol', allowedPassTypes: ['sana_concert', 'group_events'] }
-            ]);
+            return res.status(200).json(CENTRAL_EVENTS_REGISTRY);
         }
 
         const eventsRef = db.collection('events');
         const snapshot = await eventsRef.get();
 
         if (snapshot.empty) {
-            // Return defaults if collection is empty — use correct pass type IDs matching frontend
-            return res.status(200).json([
-                { id: 'gate', name: 'Gate Entry', allowedPassTypes: ['day_pass', 'proshow', 'sana_concert', 'group_events'] }
-            ]);
+            return res.status(200).json(CENTRAL_EVENTS_REGISTRY);
         }
 
         const events = snapshot.docs.map(doc => ({
@@ -300,6 +298,28 @@ app.post('/api/scan', async (req, res) => {
         if (!passFound) {
             console.log(`Scan failed: Ticket not found. Duration: ${Date.now() - startTime}ms`);
             return res.status(200).json({ status: 'invalid', error: 'Ticket not found in database' });
+        }
+
+        // B. NEW: Validate Event Access (Pass Compatibility)
+        // If eventId is provided, check if studentData.passType is in allowedPassTypes
+        if (eventId && eventId !== 'gate') {
+            const eventConfig = CENTRAL_EVENTS_REGISTRY.find(e => e.id === eventId);
+            if (eventConfig) {
+                // Determine category ID from passType (normalize string to ID)
+                let passCategoryId = 'day_pass';
+                const lowerType = studentData!.passType.toLowerCase();
+                if (lowerType.includes('proshow')) passCategoryId = 'proshow';
+                if (lowerType.includes('all access') || lowerType.includes('sana')) passCategoryId = 'sana_concert';
+                if (lowerType.includes('group')) passCategoryId = 'group_events';
+
+                if (!eventConfig.allowedPassTypes.includes(passCategoryId)) {
+                    console.log(`Scan Result: restricted (Incompatible Pass: ${studentData!.passType} for ${eventConfig.name})`);
+                    return res.status(200).json({
+                        status: 'invalid',
+                        error: `Access Denied: ${studentData!.passType} is not valid for ${eventConfig.name}.`
+                    });
+                }
+            }
         }
 
         // C. Check for Duplicate Scans
